@@ -1,0 +1,16 @@
+# Full-budget run. Override on the command line for quick iterations.
+seed: 1337
+image_size: 224
+batch_size: 32
+num_workers: 0        # Windows: 0 or 2; >0 requires the __main__ guard
+device: auto
+amp: true             # fp16 autocast on CUDA, ignored on CPU
+
+# Faithfulness evaluation budget -- these three are the cost knobs.
+n_eval_images: 500
+n_mask_steps: 25
+rise_n_masks: 2000
+rise_s: 8
+rise_p1: 0.5
+lime_n_samples: 1000
+n_random_controls: 3

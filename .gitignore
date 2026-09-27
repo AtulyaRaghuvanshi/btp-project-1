@@ -1,0 +1,16 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+data/raw/
+data/interim/
+data/manifests/*.csv
+features/
+results/**/*.npz
+results/**/*.npy
+results/figures/*.png
+*.pth
+*.pt
+*.ckpt
+.ipynb_checkpoints/
+.pytest_cache/

@@ -1,0 +1,30 @@
+{
+  "args": {
+    "backbone": "resnet50",
+    "tag": "selftest",
+    "manifest": null,
+    "probes": [
+      "gan",
+      "diffusion",
+      "loo_gan",
+      "loo_diffusion"
+    ],
+    "explainers": [
+      "gradcampp",
+      "inputgrad",
+      "random"
+    ],
+    "operators": [
+      "zero",
+      "spectral_match"
+    ],
+    "families": null,
+    "n_images": 8,
+    "n_steps": 6,
+    "batch_size": 32,
+    "rise_masks": 1000,
+    "lime_samples": 500,
+    "device": "auto",
+    "seed": 1337
+  }
+}

@@ -1,0 +1,30 @@
+# Core — install torch SEPARATELY first (see README for the CUDA/CPU wheel choice)
+numpy>=1.24,<3
+scipy>=1.10
+pandas>=2.0
+scikit-learn>=1.3
+scikit-image>=0.22
+Pillow>=10.0
+opencv-python-headless>=4.8
+tqdm>=4.66
+pyyaml>=6.0
+matplotlib>=3.7
+seaborn>=0.13
+
+# Backbones
+timm>=1.0.9
+open_clip_torch>=2.24
+
+# Explanation methods
+grad-cam>=1.5.0
+captum>=0.7.0
+lime>=0.2.0.1
+scikit-image>=0.22
+
+# Dataset acquisition
+kaggle>=1.6
+huggingface_hub>=0.23
+requests>=2.31
+
+# Dev
+pytest>=8.0

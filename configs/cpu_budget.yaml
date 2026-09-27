@@ -1,0 +1,16 @@
+# Reduced budget that completes on a 16-core CPU in ~2-3 days.
+# Drops RISE/LIME at the call site; keeps every cheap explainer.
+seed: 1337
+image_size: 224
+batch_size: 16
+num_workers: 0
+device: cpu
+amp: false
+
+n_eval_images: 150
+n_mask_steps: 15
+rise_n_masks: 500
+rise_s: 8
+rise_p1: 0.5
+lime_n_samples: 300
+n_random_controls: 2
