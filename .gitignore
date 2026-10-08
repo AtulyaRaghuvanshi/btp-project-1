@@ -9,8 +9,13 @@ features/
 results/**/*.npz
 results/**/*.npy
 results/figures/*.png
+results/progress/
+*.tmp
 *.pth
 *.pt
 *.ckpt
 .ipynb_checkpoints/
 .pytest_cache/
+.env
+general_commands.txt
+temp things.txt

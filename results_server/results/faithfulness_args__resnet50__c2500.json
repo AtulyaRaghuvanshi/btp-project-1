@@ -1,0 +1,36 @@
+{
+  "args": {
+    "backbone": "resnet50",
+    "tag": "c2500",
+    "manifest": null,
+    "probes": null,
+    "explainers": [
+      "gradcampp",
+      "gradcam",
+      "inputgrad",
+      "random",
+      "rise",
+      "lime"
+    ],
+    "heavy_probes": [
+      "mixed"
+    ],
+    "operators": [
+      "zero",
+      "gray",
+      "gaussian_blur",
+      "road_linear",
+      "spectral_match",
+      "real_transplant"
+    ],
+    "families": null,
+    "n_images": 500,
+    "n_steps": 25,
+    "batch_size": 64,
+    "rise_masks": 2000,
+    "lime_samples": 1000,
+    "device": "cuda",
+    "seed": 1337,
+    "fresh": false
+  }
+}

@@ -21,7 +21,8 @@ data/raw/
 
 2.5 M images from 25 generators (13 GAN, 7 diffusion, 5 other) plus ~965 k real
 photographs, organised one folder per generator with a `metadata.csv` carrying
-the 0/1 target. That per-generator structure is what makes the cross-generator
+a `target` class code (0 = real, 1–6 = which generator group; the
+scanner collapses it to real/fake). That per-generator structure is what makes the cross-generator
 transfer matrix cheap to build.
 
 ```bash

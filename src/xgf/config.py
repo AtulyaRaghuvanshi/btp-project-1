@@ -20,33 +20,47 @@ def _p(*parts: str) -> Path:
 # `generator` (the concrete model) and a `family` (its synthesis paradigm).
 # Faithfulness is then reported per family, and probes are trained on family
 # subsets so we can build a train-family x test-family transfer matrix.
+#
+# Names are the *normalised* folder names the scanners see (manifest._norm), so
+# ArtiFact's `pro_gan` and ForenSynths' `progan` are both listed. Every name
+# must appear in exactly one family -- enforced below. A model that does two
+# tasks gets one name per task (`glide` vs `glide_inpaint`), never two families.
 FAMILIES: Dict[str, List[str]] = {
     "gan": [
-        "progan", "stylegan", "stylegan2", "stylegan3", "biggan", "cyclegan",
-        "stargan", "gaugan", "projected_gan", "gansformer", "star_gan",
-        "denoising_diffusion_gan", "big_gan", "face_synthetics", "generative_inpainting",
-        "lama", "mat", "palette", "sfhq", "stable_diffusion", "taming_transformer",
+        "progan", "pro_gan", "stylegan", "stylegan1", "stylegan2", "stylegan3",
+        "biggan", "big_gan", "cyclegan", "cycle_gan", "stargan", "star_gan",
+        "gaugan", "gau_gan", "projected_gan", "gansformer", "cips", "sfhq",
+        "whichfaceisreal",
+        # Diffusion-GAN is a one-step StyleGAN2/ProjectedGAN generator trained
+        # with diffusion-noised discriminator inputs; DD-GAN runs a 4-step chain
+        # whose every step is an adversarially trained generator. Both are GANs
+        # at sampling time, so they sit here despite the names.
+        "diffusion_gan", "denoising_diffusion_gan",
     ],
     "diffusion": [
         "stable_diffusion", "sd14", "sd15", "sd21", "sdxl", "glide", "adm",
-        "ldm", "dalle2", "dalle3", "midjourney", "guided_diffusion",
-        "latent_diffusion", "vqdm", "wukong", "palette", "cips",
+        "ddpm", "ldm", "latent_diffusion", "vq_diffusion", "vqdm", "palette",
+        "dalle2", "dalle3", "midjourney", "guided_diffusion", "wukong",
     ],
     "autoregressive": ["taming_transformer", "dalle_mini", "vqgan", "parti", "llamagen"],
     "inpainting": ["lama", "mat", "generative_inpainting", "glide_inpaint", "sd_inpaint", "cocoglide"],
-    "faceswap": ["deepfakes", "faceswap", "faceshifter", "simswap", "inswap", "blendface", "e4s"],
+    # Graphics-pipeline renders (Microsoft Face Synthetics): no learned generator.
+    "rendered": ["face_synthetics"],
+    "faceswap": ["deepfake", "deepfakes", "faceswap", "faceshifter", "simswap", "inswap", "blendface", "e4s"],
     "reenactment": ["face2face", "neuraltextures", "fomm", "facevid2vid", "wav2lip", "mraa", "one_shot_free"],
     "real": ["real"],
 }
 
-# Reverse lookup, built once. A generator can legitimately appear in two
-# families (e.g. stable_diffusion does both full synthesis and inpainting);
-# the manifest builder resolves that from the source dataset, not this map,
-# so this reverse map only supplies a *default*.
+# Reverse lookup, built once. Refuses duplicates: with a first-wins lookup, a
+# name listed under two families silently lands in whichever comes first, which
+# is how stable_diffusion once ended up in "gan".
 GENERATOR_TO_FAMILY: Dict[str, str] = {}
 for _fam, _gens in FAMILIES.items():
     for _g in _gens:
-        GENERATOR_TO_FAMILY.setdefault(_g, _fam)
+        if _g in GENERATOR_TO_FAMILY:
+            raise ValueError("generator {!r} listed under both {!r} and {!r}".format(
+                _g, GENERATOR_TO_FAMILY[_g], _fam))
+        GENERATOR_TO_FAMILY[_g] = _fam
 
 
 @dataclass
@@ -59,6 +73,9 @@ class Paths:
     results: Path = field(default_factory=lambda: _p("results"))
     figures: Path = field(default_factory=lambda: _p("results", "figures"))
     checkpoints: Path = field(default_factory=lambda: _p("results", "checkpoints"))
+    # Resumable-run state (progress logs, cached saliency). Safe to delete; a
+    # deleted entry only means that work is redone on the next run.
+    progress: Path = field(default_factory=lambda: _p("results", "progress"))
 
     def ensure(self) -> None:
         for v in vars(self).values():

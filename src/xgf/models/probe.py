@@ -28,29 +28,87 @@ def feature_path(backbone: str, tag: str = "all") -> Path:
     return PATHS.features / "{}__{}.npz".format(backbone, tag)
 
 
+def feature_precision(device: torch.device, amp: bool) -> str:
+    """fp16 and fp32 features differ slightly, so a cache must not mix them."""
+    return "fp16" if (amp and device.type == "cuda") else "fp32"
+
+
+def feature_checkpoint_config(backbone: str, df: pd.DataFrame, image_size: int,
+                              precision: str) -> Dict:
+    """Everything that changes the numbers in a feature cache.
+
+    Batch size is deliberately absent: the backbone is in eval mode, so a
+    row's features do not depend on which batch it was in, and the batch size
+    may be lowered on resume (e.g. after an OOM).
+    """
+    from ..utils.checkpoint import fingerprint
+
+    return {
+        "backbone": backbone,
+        "image_size": int(image_size),
+        "precision": precision,
+        "rows": fingerprint(list(zip(df["path"].astype(str),
+                                     df["label"].astype(int)))),
+    }
+
+
 @torch.no_grad()
 def extract_features(detector: Detector, df: pd.DataFrame, image_size: int = 224,
                      batch_size: int = 32, num_workers: int = 0,
-                     amp: bool = True, desc: str = "features") -> Dict[str, np.ndarray]:
-    """Run the frozen backbone over a manifest slice and cache pooled features."""
+                     amp: bool = True, desc: str = "features",
+                     checkpoint=None, checkpoint_every: int = 50,
+                     ) -> Dict[str, np.ndarray]:
+    """Run the frozen backbone over a manifest slice and cache pooled features.
+
+    With a :class:`~xgf.utils.checkpoint.ShardCheckpoint`, features are flushed
+    to disk every ``checkpoint_every`` batches and extraction starts from the
+    first row not yet on disk.
+    """
     device = next(detector.parameters()).device
     use_amp = amp and device.type == "cuda"
-    loader = make_loader(df, image_size=image_size, batch_size=batch_size,
-                         num_workers=num_workers, shuffle=False)
+    start = checkpoint.next_row() if checkpoint is not None else 0
+    if start:
+        print("[features] resuming at row {}/{} from {}".format(
+            start, len(df), checkpoint.dir))
+
     feats: List[np.ndarray] = []
     labels: List[np.ndarray] = []
-    for batch in tqdm(loader, desc=desc, leave=False):
-        x = batch["image"].to(device, non_blocking=True)
-        if use_amp:
-            with torch.autocast("cuda", dtype=torch.float16):
+    buf_start = start
+    if start < len(df):
+        loader = make_loader(df.iloc[start:], image_size=image_size,
+                             batch_size=batch_size, num_workers=num_workers,
+                             shuffle=False)
+        for batch in tqdm(loader, desc=desc, leave=False):
+            x = batch["image"].to(device, non_blocking=True)
+            if use_amp:
+                with torch.autocast("cuda", dtype=torch.float16):
+                    f = detector.features(x)
+            else:
                 f = detector.features(x)
-        else:
-            f = detector.features(x)
-        feats.append(f.float().cpu().numpy())
-        labels.append(batch["label"].numpy())
+            feats.append(f.float().cpu().numpy())
+            labels.append(batch["label"].numpy())
+            if checkpoint is not None and len(feats) >= checkpoint_every:
+                F_, L_ = np.concatenate(feats), np.concatenate(labels)
+                checkpoint.write(buf_start, buf_start + len(F_),
+                                 features=F_.astype(np.float32),
+                                 labels=L_.astype(np.int64))
+                buf_start += len(F_)
+                feats, labels = [], []
+
+    if checkpoint is not None:
+        if feats:
+            F_, L_ = np.concatenate(feats), np.concatenate(labels)
+            checkpoint.write(buf_start, buf_start + len(F_),
+                             features=F_.astype(np.float32),
+                             labels=L_.astype(np.int64))
+        arrays = checkpoint.load_all()
+        features, labs = arrays["features"], arrays["labels"]
+    else:
+        features, labs = np.concatenate(feats), np.concatenate(labels)
+
     return {
-        "features": np.concatenate(feats).astype(np.float32),
-        "labels": np.concatenate(labels).astype(np.int64),
+        "features": features.astype(np.float32),
+        "labels": labs.astype(np.int64),
         "generator": df["generator"].to_numpy(dtype=object),
         "family": df["family"].to_numpy(dtype=object),
         "split": df["split"].to_numpy(dtype=object),
@@ -59,9 +117,9 @@ def extract_features(detector: Detector, df: pd.DataFrame, image_size: int = 224
 
 
 def save_features(cache: Dict[str, np.ndarray], backbone: str, tag: str = "all") -> Path:
-    out = feature_path(backbone, tag)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(out, **cache)
+    from ..utils.checkpoint import atomic_save_npz
+
+    out = atomic_save_npz(feature_path(backbone, tag), **cache)
     print("[features] {} x {} -> {}".format(*cache["features"].shape, out))
     return out
 
@@ -190,20 +248,20 @@ def probe_to_detector(detector: Detector, clf) -> Detector:
     return detector
 
 
-def save_probe(clf, info: Dict, backbone: str, tag: str) -> Path:
-    import pickle
+def probe_path(backbone: str, tag: str) -> Path:
+    return PATHS.checkpoints / "probe__{}__{}.pkl".format(backbone, tag)
 
-    out = PATHS.checkpoints / "probe__{}__{}.pkl".format(backbone, tag)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    with open(out, "wb") as fh:
-        pickle.dump({"clf": clf, "info": info}, fh)
-    return out
+
+def save_probe(clf, info: Dict, backbone: str, tag: str) -> Path:
+    from ..utils.checkpoint import atomic_save_pickle
+
+    return atomic_save_pickle(probe_path(backbone, tag), {"clf": clf, "info": info})
 
 
 def load_probe(backbone: str, tag: str) -> Tuple[object, Dict]:
     import pickle
 
-    p = PATHS.checkpoints / "probe__{}__{}.pkl".format(backbone, tag)
+    p = probe_path(backbone, tag)
     if not p.exists():
         raise FileNotFoundError(
             "{} missing. Run: python scripts/03_train_probes.py".format(p)

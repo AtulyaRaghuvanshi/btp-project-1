@@ -14,6 +14,11 @@ computed with that operator.
         --probe mixed --operators zero gray road_linear real_transplant
 
 Output: results/leakage__<backbone>__<probe>.csv plus a JSON summary.
+
+Resumable: each operator's result is committed to
+``results/progress/leakage__<backbone>__<probe>.jsonl`` as it finishes, so a
+re-run skips operators already measured. Adding operators to the list later
+just measures the new ones.
 """
 from __future__ import annotations
 
@@ -31,9 +36,14 @@ from xgf.data.datasets import ManifestDataset, subset  # noqa: E402
 from xgf.data.manifest import load_manifest  # noqa: E402
 from xgf.metrics.leakage import measure_leakage  # noqa: E402
 from xgf.models.detector import Detector  # noqa: E402
-from xgf.models.probe import load_probe, probe_to_detector  # noqa: E402
+from xgf.models.probe import (  # noqa: E402
+    feature_precision, load_probe, probe_path, probe_to_detector,
+)
 from xgf.perturb.operators import (  # noqa: E402
     ARTIFACT_INJECTING, ARTIFACT_NEUTRAL, DonorBank,
+)
+from xgf.utils.checkpoint import (  # noqa: E402
+    RunLog, file_fingerprint, reseed_all, run_resumable, unit_seed,
 )
 from xgf.utils.io import save_json  # noqa: E402
 from xgf.utils.seed import set_seed  # noqa: E402
@@ -55,6 +65,8 @@ def main() -> None:
     ap.add_argument("--batch-size", type=int, default=32)
     ap.add_argument("--device", default="auto")
     ap.add_argument("--seed", type=int, default=1337)
+    ap.add_argument("--fresh", action="store_true",
+                    help="discard saved progress for this backbone/probe")
     args = ap.parse_args()
 
     cfg = RunConfig(device=args.device, seed=args.seed)
@@ -87,23 +99,53 @@ def main() -> None:
         n=min(256, max(32, len(df) // 8)), seed=cfg.seed,
     )
 
+    # Batch size is left out: it only chunks forward passes, it does not change
+    # which pixels are masked or filled.
+    log = RunLog(
+        PATHS.progress / "leakage__{}__{}.jsonl".format(args.backbone, args.probe),
+        config={
+            "backbone": args.backbone, "probe": args.probe,
+            "probe_file": file_fingerprint(probe_path(args.backbone, args.probe)),
+            "manifest": file_fingerprint(PATHS.manifests / mname),
+            "n_images": args.n_images, "n_steps": args.n_steps,
+            "n_repeats": args.n_repeats, "seed": cfg.seed,
+            "image_size": cfg.image_size,
+            "precision": feature_precision(torch.device(device), cfg.amp),
+        },
+        fresh=args.fresh,
+    )
+    n_done = sum(log.done(op) for op in args.operators)
+    if n_done:
+        print("[leakage] resuming: {}/{} operators already measured ({})".format(
+            n_done, len(args.operators), log.path))
+
     rows, curves = [], {}
     for op in args.operators:
-        res = measure_leakage(
-            det, images, operator=op, n_steps=args.n_steps,
-            n_repeats=args.n_repeats, donor_bank=donors,
-            batch_size=args.batch_size, amp=cfg.amp, seed=cfg.seed,
-            meta={"backbone": args.backbone, "probe": args.probe},
-        )
-        s = res.summary()
-        s["class"] = ("injecting" if op in ARTIFACT_INJECTING
-                      else "neutral" if op in ARTIFACT_NEUTRAL else "other")
+        if not log.done(op):
+            # Reseed from the operator's name alone, so its stochastic fill and
+            # donor draws are the same whether or not earlier operators ran in
+            # this process.
+            op_seed = unit_seed(cfg.seed, "leakage", op)
+            reseed_all(op_seed)
+            donors.reseed(op_seed)
+            res = measure_leakage(
+                det, images, operator=op, n_steps=args.n_steps,
+                n_repeats=args.n_repeats, donor_bank=donors,
+                batch_size=args.batch_size, amp=cfg.amp, seed=cfg.seed,
+                meta={"backbone": args.backbone, "probe": args.probe},
+            )
+            s = res.summary()
+            s["class"] = ("injecting" if op in ARTIFACT_INJECTING
+                          else "neutral" if op in ARTIFACT_NEUTRAL else "other")
+            log.commit(op, {"summary": s, "curves": {
+                "fractions": res.fractions.tolist(),
+                "mean_pfake": res.curves.mean(axis=0).tolist(),
+                "mean_delta": res.delta_curves.mean(axis=0).tolist(),
+            }})
+        rec = log.get(op)
+        s = rec["summary"]
         rows.append(s)
-        curves[op] = {
-            "fractions": res.fractions.tolist(),
-            "mean_pfake": res.curves.mean(axis=0).tolist(),
-            "mean_delta": res.delta_curves.mean(axis=0).tolist(),
-        }
+        curves[op] = rec["curves"]
         print("  {:<16} [{:<9}] leak_auc={:.4f}  delta={:+.4f}  "
               "slope={:+.4f}  flip={:.3f}".format(
                   op, s["class"], s["leakage_auc"], s["leakage_delta_auc"],
@@ -133,4 +175,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_resumable(main)

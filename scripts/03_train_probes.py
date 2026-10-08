@@ -11,6 +11,10 @@ Configurations trained:
 The mixed-vs-single contrast is the controlled intervention at the heart of the
 cross-generator experiment: same backbone, same head capacity, same total
 training budget -- only the *generator diversity* of the training set changes.
+
+Resumable: each probe is saved as soon as it is fitted, stamped with a
+fingerprint of (feature cache contents, families, C, seed). A re-run loads any
+probe whose fingerprint still matches instead of refitting it.
 """
 from __future__ import annotations
 
@@ -26,7 +30,11 @@ import pandas as pd  # noqa: E402
 
 from xgf.config import PATHS  # noqa: E402
 from xgf.models.probe import (  # noqa: E402
-    evaluate_probe_per_family, load_features, save_probe, train_probe,
+    evaluate_probe_per_family, feature_path, load_features, load_probe,
+    probe_path, save_probe, train_probe,
+)
+from xgf.utils.checkpoint import (  # noqa: E402
+    file_fingerprint, fingerprint, run_resumable,
 )
 from xgf.utils.io import save_json  # noqa: E402
 from xgf.utils.seed import set_seed  # noqa: E402
@@ -49,6 +57,8 @@ def main() -> None:
     ap.add_argument("--C", type=float, default=1.0)
     ap.add_argument("--seed", type=int, default=1337)
     ap.add_argument("--no-loo", action="store_true")
+    ap.add_argument("--fresh", action="store_true",
+                    help="refit every probe even if a matching one is saved")
     args = ap.parse_args()
 
     set_seed(args.seed)
@@ -60,21 +70,31 @@ def main() -> None:
 
     configs = build_configs(fams, include_loo=not args.no_loo)
     rows, infos = [], {}
+    feat_fp = file_fingerprint(feature_path(args.backbone, args.tag))
 
     for tag, train_fams in configs.items():
-        try:
-            clf, info = train_probe(cache, train_fams, C=args.C, seed=args.seed)
-        except RuntimeError as exc:
-            print("  [skip] {}: {}".format(tag, exc))
-            continue
+        fp = fingerprint({"features": feat_fp, "train_families": train_fams,
+                          "C": args.C, "seed": args.seed})
+        clf = None
+        if not args.fresh and probe_path(args.backbone, tag).exists():
+            old_clf, old_info = load_probe(args.backbone, tag)
+            if old_info.get("fingerprint") == fp:
+                clf, info = old_clf, old_info
+                print("  [resume] {} already fitted".format(tag))
+        if clf is None:
+            try:
+                clf, info = train_probe(cache, train_fams, C=args.C, seed=args.seed)
+            except RuntimeError as exc:
+                print("  [skip] {}: {}".format(tag, exc))
+                continue
+            info["fingerprint"] = fp
+            save_probe(clf, info, args.backbone, tag)
         per_fam = evaluate_probe_per_family(clf, cache, split="test")
         per_fam["train_config"] = tag
         per_fam["train_families"] = ",".join(train_fams)
         per_fam["seen"] = per_fam["test_family"].isin(train_fams)
         per_fam["backbone"] = args.backbone
         rows.append(per_fam)
-
-        save_probe(clf, info, args.backbone, tag)
         infos[tag] = info
         seen = per_fam.loc[per_fam["seen"], "auc"]
         unseen = per_fam.loc[~per_fam["seen"], "auc"]
@@ -112,4 +132,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    run_resumable(main)

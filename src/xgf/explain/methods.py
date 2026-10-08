@@ -293,7 +293,8 @@ def _unfuse_attention(inner: torch.nn.Module) -> int:
       ``attn_drop``, so a hook on ``attn_drop`` sees the real matrix.
     * **open_clip** -- blocks call ``nn.MultiheadAttention`` with
       ``need_weights=False``. Wrap ``forward`` to flip that flag so the module
-      returns per-layer weights.
+      returns per-layer weights. The flip is skipped while the module's
+      ``_xgf_capture`` attribute is False (see ``AttentionRollout``).
 
     Returns the number of attention modules successfully instrumented.
     """
@@ -306,9 +307,10 @@ def _unfuse_attention(inner: torch.nn.Module) -> int:
             if not getattr(m, "_xgf_patched", False):
                 orig = m.forward
 
-                def fwd(*a, _orig=orig, **kw):
-                    kw["need_weights"] = True
-                    kw["average_attn_weights"] = True
+                def fwd(*a, _orig=orig, _m=m, **kw):
+                    if getattr(_m, "_xgf_capture", True):
+                        kw["need_weights"] = True
+                        kw["average_attn_weights"] = True
                     return _orig(*a, **kw)
 
                 m.forward = fwd
@@ -328,6 +330,14 @@ class AttentionRollout(Explainer):
     captured this class raises rather than quietly substituting a proxy;
     use the separate ``token_norm`` explainer if you want that proxy, under
     its own honest name.
+
+    The detector is shared with every other explainer and with the
+    perturbation curves, so instrumentation is live only inside ``_explain``.
+    Outside it the backbone runs its default fused attention and nothing is
+    captured: otherwise every later forward would append 12 attention maps
+    (an OOM within seconds on the GPU), and the curves' numerics would depend
+    on whether this explainer happened to be built in the current process --
+    which a resumed run does not reproduce.
     """
 
     cost_per_image = 1
@@ -338,28 +348,46 @@ class AttentionRollout(Explainer):
             raise ValueError("attention_rollout requires a transformer backbone")
         self.discard_ratio = discard_ratio
         self._attns = []
+        self._capturing = False
         inner = (detector.backbone.visual if detector.spec.kind == "clip"
                  else detector.backbone.model)
+        self._timm_attn = [m for m in inner.modules()
+                           if hasattr(m, "fused_attn") and hasattr(m, "attn_drop")]
+        self._mha = [m for m in inner.modules()
+                     if isinstance(m, torch.nn.MultiheadAttention)]
+        self._fused_default = [m.fused_attn for m in self._timm_attn]
         self._n_patched = _unfuse_attention(inner)
-        for m in inner.modules():
-            if hasattr(m, "fused_attn") and hasattr(m, "attn_drop"):
-                m.attn_drop.register_forward_hook(self._drop_hook)
-            elif isinstance(m, torch.nn.MultiheadAttention):
-                m.register_forward_hook(self._mha_hook)
+        self._set_capture(False)
+        for m in self._timm_attn:
+            m.attn_drop.register_forward_hook(self._drop_hook)
+        for m in self._mha:
+            m.register_forward_hook(self._mha_hook)
+
+    def _set_capture(self, on: bool) -> None:
+        self._capturing = on
+        for m, fused in zip(self._timm_attn, self._fused_default):
+            m.fused_attn = False if on else fused
+        for m in self._mha:
+            m._xgf_capture = on
 
     def _drop_hook(self, _m, _i, out):
-        if torch.is_tensor(out) and out.dim() == 4:
+        if self._capturing and torch.is_tensor(out) and out.dim() == 4:
             self._attns.append(out.detach())
 
     def _mha_hook(self, _m, _i, out):
-        if isinstance(out, tuple) and len(out) > 1 and torch.is_tensor(out[1]):
+        if (self._capturing and isinstance(out, tuple) and len(out) > 1
+                and torch.is_tensor(out[1])):
             a = out[1]
             self._attns.append((a if a.dim() == 4 else a.unsqueeze(1)).detach())
 
     @torch.no_grad()
     def _explain(self, x01, target):
         self._attns = []
-        self.detector(x01)
+        self._set_capture(True)
+        try:
+            self.detector(x01)
+        finally:
+            self._set_capture(False)
         if not self._attns:
             raise RuntimeError(
                 "attention_rollout captured no attention weights for backbone "
@@ -369,7 +397,8 @@ class AttentionRollout(Explainer):
             )
         B = x01.shape[0]
         result = None
-        for a in self._attns:
+        attns, self._attns = self._attns, []      # don't pin them on the GPU
+        for a in attns:
             a = a.mean(dim=1)                                  # average heads
             if self.discard_ratio > 0:                         # drop weak edges
                 k = int(a.shape[-1] * self.discard_ratio)
@@ -441,6 +470,9 @@ class RandomBaseline(Explainer):
     def __init__(self, detector, seed: int = 1337, **kw):
         super().__init__(detector, **kw)
         self.g = torch.Generator().manual_seed(seed)
+
+    def reseed(self, seed: int) -> None:
+        self.g.manual_seed(seed)
 
     def _explain(self, x01, target):
         B, _, H, W = x01.shape

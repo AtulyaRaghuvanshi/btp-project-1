@@ -49,6 +49,26 @@ ArtiFact download runs.
 Then swap in real data (see [docs/DATA.md](docs/DATA.md)) and drop `--selftest` /
 `--tag selftest`.
 
+### Interrupted runs resume
+
+If a run dies part-way (crash, Ctrl+C, the laptop goes to sleep), re-run the
+same command and it continues from where it stopped:
+
+| stage | unit committed to disk | where |
+|---|---|---|
+| 02 features | a shard every `--checkpoint-every` batches | `features/<bb>__<tag>.partial/` |
+| 03 probes | each fitted probe | `results/checkpoints/` |
+| 04 leakage | each operator | `results/progress/leakage__<bb>__<probe>.jsonl` |
+| 05 faithfulness | each (probe, family, explainer, operator) row, plus saliency maps and control curves | `results/progress/faithfulness__<bb>__<tag>/` |
+
+Each unit reseeds from its own identity, so a resumed run produces the same
+numbers as an uninterrupted one. Settings that change results (`--n-images`,
+`--n-steps`, the manifest, a retrained probe, fp16 vs fp32) are recorded with
+the progress. If they differ on resume, the script refuses to continue rather
+than mix two experiments; pass `--fresh` to start over. Batch size may be
+changed freely on resume. Widening the grid (more explainers, operators,
+families or probes) computes only the new cells.
+
 ---
 
 ## Repository map

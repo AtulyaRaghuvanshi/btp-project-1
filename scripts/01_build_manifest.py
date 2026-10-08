@@ -116,6 +116,9 @@ def main() -> None:
     ap.add_argument("--n-per-class", type=int, default=60)
     ap.add_argument("--out", default="manifest.csv")
     ap.add_argument("--seed", type=int, default=1337)
+    ap.add_argument("--max-per-group", type=int, default=None,
+                    help="seeded cap per (source, generator, label); use a "
+                         "distinct --out so capped and full runs never mix")
     args = ap.parse_args()
 
     set_seed(args.seed)
@@ -150,7 +153,8 @@ def main() -> None:
         print("See docs/DATA.md for download instructions, or run with --selftest")
         sys.exit(1)
 
-    M.build_manifest(rows, seed=args.seed, out_name=args.out)
+    M.build_manifest(rows, seed=args.seed, out_name=args.out,
+                     max_per_group=args.max_per_group)
 
 
 if __name__ == "__main__":

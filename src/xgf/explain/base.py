@@ -73,6 +73,14 @@ class Explainer:
     def _explain(self, x01: torch.Tensor, target: int) -> torch.Tensor:
         raise NotImplementedError
 
+    def reseed(self, seed: int) -> None:
+        """Reset any RNG the explainer carries between calls.
+
+        Needed for resumable runs: a map must depend on ``(seed, input)`` only,
+        never on how many batches were explained before it. Methods that already
+        reseed inside every call (RISE, LIME) need nothing here.
+        """
+
     def __call__(self, x01: torch.Tensor, target: int = 1) -> torch.Tensor:
         """``x01``: (B, 3, H, W) in [0,1]. Returns (B, H, W) in [0,1]."""
         x01 = x01.to(self.device)

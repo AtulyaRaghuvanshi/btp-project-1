@@ -271,6 +271,11 @@ class DonorBank:
         self.images = images.cpu()
         self.g = torch.Generator().manual_seed(seed)
 
+    def reseed(self, seed: int) -> None:
+        """Restart the donor sequence, so the donors a curve draws depend on
+        its own seed and not on how many curves were computed before it."""
+        self.g.manual_seed(seed)
+
     def sample(self, n: int) -> torch.Tensor:
         idx = torch.randint(0, self.images.shape[0], (n,), generator=self.g)
         return self.images[idx]

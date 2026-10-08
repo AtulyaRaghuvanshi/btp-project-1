@@ -24,6 +24,7 @@ import numpy as np  # noqa: E402
 import pandas as pd  # noqa: E402
 
 from xgf.config import PATHS  # noqa: E402
+from xgf.metrics.grid import balanced_explainers, complete_cells  # noqa: E402
 from xgf.utils.io import load_json  # noqa: E402
 
 plt.rcParams.update({
@@ -104,7 +105,7 @@ def fig_method_ranking(backbone: str, tag: str) -> None:
     csv = PATHS.results / "faithfulness__{}__{}.csv".format(backbone, tag)
     if not csv.exists():
         return
-    df = pd.read_csv(csv)
+    df = complete_cells(pd.read_csv(csv))
     piv = df.pivot_table(index="explainer", columns="operator",
                          values="delta_auc", aggfunc="mean")
     if piv.empty:
@@ -129,7 +130,7 @@ def fig_gap_scatter(backbone: str, tag: str) -> None:
     acsv = PATHS.results / "accuracy_matrix__{}__{}.csv".format(backbone, tag)
     if not (fcsv.exists() and acsv.exists()):
         return
-    fdf = pd.read_csv(fcsv)
+    fdf = balanced_explainers(pd.read_csv(fcsv))
     adf = pd.read_csv(acsv)
     fdf = fdf[fdf["explainer"] != "random"]
 
@@ -170,7 +171,7 @@ def fig_transfer_heatmap(backbone: str, tag: str) -> None:
     csv = PATHS.results / "faithfulness__{}__{}.csv".format(backbone, tag)
     if not csv.exists():
         return
-    df = pd.read_csv(csv)
+    df = balanced_explainers(pd.read_csv(csv))
     df = df[df["explainer"] != "random"]
     piv = df.pivot_table(index="probe", columns="test_family",
                          values="delta_auc", aggfunc="mean")

@@ -1,0 +1,174 @@
+{
+  "autoregressive": {
+    "train_families": [
+      "autoregressive"
+    ],
+    "n_train": 49388,
+    "n_val": 7056,
+    "train_acc": 0.9030736211225399,
+    "val_auc": 0.9363743755509844,
+    "val_acc": 0.8886054421768708,
+    "fingerprint": "4e978838ff95051e"
+  },
+  "diffusion": {
+    "train_families": [
+      "diffusion"
+    ],
+    "n_train": 69265,
+    "n_val": 9896,
+    "train_acc": 0.7910633075868043,
+    "val_auc": 0.8618283695996394,
+    "val_acc": 0.775767987065481,
+    "fingerprint": "c1938ad5a9c589df"
+  },
+  "faceswap": {
+    "train_families": [
+      "faceswap"
+    ],
+    "n_train": 49388,
+    "n_val": 7056,
+    "train_acc": 0.9657001700818012,
+    "val_auc": 0.9939576843961211,
+    "val_acc": 0.9661281179138322,
+    "fingerprint": "c72c621d547a97cf"
+  },
+  "gan": {
+    "train_families": [
+      "gan"
+    ],
+    "n_train": 85312,
+    "n_val": 12188,
+    "train_acc": 0.8322158664666166,
+    "val_auc": 0.9046760907730766,
+    "val_acc": 0.8189202494256645,
+    "fingerprint": "4723f0d7f6823c65"
+  },
+  "inpainting": {
+    "train_families": [
+      "inpainting"
+    ],
+    "n_train": 54638,
+    "n_val": 7806,
+    "train_acc": 0.8392510706834072,
+    "val_auc": 0.9242578607111371,
+    "val_acc": 0.8348706123494748,
+    "fingerprint": "56dd5152ededbe3a"
+  },
+  "rendered": {
+    "train_families": [
+      "rendered"
+    ],
+    "n_train": 49388,
+    "n_val": 7056,
+    "train_acc": 0.9899773224265004,
+    "val_auc": 0.9995603878930356,
+    "val_acc": 0.9889455782312925,
+    "fingerprint": "4a25f992086444fd"
+  },
+  "mixed": {
+    "train_families": [
+      "autoregressive",
+      "diffusion",
+      "faceswap",
+      "gan",
+      "inpainting",
+      "rendered"
+    ],
+    "n_train": 119189,
+    "n_val": 17028,
+    "train_acc": 0.7613202560638985,
+    "val_auc": 0.8301192874633332,
+    "val_acc": 0.7506459948320413,
+    "fingerprint": "83d8bb857413c654"
+  },
+  "loo_autoregressive": {
+    "train_families": [
+      "diffusion",
+      "faceswap",
+      "gan",
+      "inpainting",
+      "rendered"
+    ],
+    "n_train": 117439,
+    "n_val": 16778,
+    "train_acc": 0.7607438755438994,
+    "val_auc": 0.8300499037622711,
+    "val_acc": 0.7507450232447253,
+    "fingerprint": "6f828ef49191da6d"
+  },
+  "loo_diffusion": {
+    "train_families": [
+      "autoregressive",
+      "faceswap",
+      "gan",
+      "inpainting",
+      "rendered"
+    ],
+    "n_train": 97562,
+    "n_val": 13938,
+    "train_acc": 0.8083782620282487,
+    "val_auc": 0.8830318469615985,
+    "val_acc": 0.7967427177500359,
+    "fingerprint": "4fcdbc82987e7a72"
+  },
+  "loo_faceswap": {
+    "train_families": [
+      "autoregressive",
+      "diffusion",
+      "gan",
+      "inpainting",
+      "rendered"
+    ],
+    "n_train": 117439,
+    "n_val": 16778,
+    "train_acc": 0.7649077393370175,
+    "val_auc": 0.8324387774454928,
+    "val_acc": 0.7559899868875909,
+    "fingerprint": "75935039c2b194a7"
+  },
+  "loo_gan": {
+    "train_families": [
+      "autoregressive",
+      "diffusion",
+      "faceswap",
+      "inpainting",
+      "rendered"
+    ],
+    "n_train": 81515,
+    "n_val": 11646,
+    "train_acc": 0.7634055081886769,
+    "val_auc": 0.8355303748758388,
+    "val_acc": 0.7504722651554182,
+    "fingerprint": "314b096835f47878"
+  },
+  "loo_inpainting": {
+    "train_families": [
+      "autoregressive",
+      "diffusion",
+      "faceswap",
+      "gan",
+      "rendered"
+    ],
+    "n_train": 112189,
+    "n_val": 16028,
+    "train_acc": 0.7647986879284066,
+    "val_auc": 0.8349004345292685,
+    "val_acc": 0.7545545295732469,
+    "fingerprint": "e76eec4683e09044"
+  },
+  "loo_rendered": {
+    "train_families": [
+      "autoregressive",
+      "diffusion",
+      "faceswap",
+      "gan",
+      "inpainting"
+    ],
+    "n_train": 117439,
+    "n_val": 16778,
+    "train_acc": 0.759917914832381,
+    "val_auc": 0.8289990182914746,
+    "val_acc": 0.7514602455596615,
+    "fingerprint": "34909361dd535719"
+  }
+}

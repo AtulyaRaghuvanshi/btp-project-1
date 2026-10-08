@@ -57,6 +57,12 @@ changing anything scientific.
 - New fill operator -> decorate with `@register("name")` and add it to
   `ARTIFACT_INJECTING` or `ARTIFACT_NEUTRAL`. Operators must leave unmasked
   pixels bit-identical (there is a test for this).
+- Long stages are resumable (`xgf/utils/checkpoint.py`). Any new random draw
+  inside a work unit must come from an RNG reseeded by `unit_seed(...)` at the
+  start of that unit (see `reseed_cell` in `scripts/05`); an RNG that carries
+  state across units makes resumed numbers differ from uninterrupted ones.
+  Explainers with internal RNG state override `Explainer.reseed`. Write outputs
+  through the `atomic_*` helpers, never with a bare `open(path, "wb")`.
 - Operators are called **once per batch of masking levels**, never per step.
   `road_linear` runs a 40-iteration relaxation; per-step calls were ~3x slower.
 

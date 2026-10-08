@@ -281,3 +281,80 @@ def test_attention_rollout_raises_instead_of_substituting_a_proxy():
 
     # The honest proxy is still available, under its own name.
     assert build_explainer("token_norm", det)(x, target=1).shape == (1, 8, 8)
+
+
+def test_attention_rollout_is_inert_outside_explain():
+    """Regression guard: the detector is shared with the perturbation curves.
+
+    The hooks once captured attention on every forward and fused attention
+    stayed off for good, so the curves of every other explainer leaked GPU
+    memory (OOM on the H100) and ran different numerics depending on whether
+    rollout had been built in that process -- breaking resume equivalence.
+    """
+    import torch.nn as nn
+    import torch.nn.functional as F
+
+    from xgf.explain.base import build_explainer
+    from xgf.explain import methods  # noqa: F401
+
+    class Attn(nn.Module):
+        """timm-style: fused SDPA by default, explicit softmax otherwise."""
+
+        def __init__(self):
+            super().__init__()
+            self.fused_attn = True
+            self.attn_drop = nn.Identity()
+            self.calls = {"fused": 0, "explicit": 0}
+
+        def forward(self, t):
+            q = t.unsqueeze(1)                                   # 1 head
+            if self.fused_attn:
+                self.calls["fused"] += 1
+                out = F.scaled_dot_product_attention(q, q, q)
+            else:
+                self.calls["explicit"] += 1
+                attn = self.attn_drop((q @ q.transpose(-2, -1)).softmax(-1))
+                out = attn @ q
+            return out.squeeze(1)
+
+    class TinyViT(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.proj = nn.Linear(3, 8)
+            self.attn = Attn()
+            self.fc = nn.Linear(8, 2)
+
+        def forward(self, x01):
+            t = self.proj(x01.flatten(2).transpose(1, 2)[:, :17, :])
+            return self.fc(self.attn(t).mean(1))
+
+    class Spec:
+        kind, name, cam_layer = "vit", "tiny", None
+
+    class Det(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.spec = Spec()
+            self.backbone = nn.Module()
+            self.backbone.model = TinyViT()
+            self.backbone_name = "tiny"
+
+        def forward(self, x):
+            return self.backbone.model(x)
+
+    det = Det().eval()
+    attn = det.backbone.model.attn
+    x = torch.rand(2, 3, 8, 8)
+    expl = build_explainer("attention_rollout", det)
+
+    assert attn.fused_attn, "building the explainer must not unfuse attention"
+    with torch.no_grad():
+        for _ in range(5):                                       # a 'curve'
+            det(x)
+    assert expl._attns == [], "attention captured outside _explain"
+    assert attn.calls["explicit"] == 0
+
+    sal = expl(x, target=1)
+    assert sal.shape == (2, 8, 8) and torch.isfinite(sal).all()
+    assert attn.calls["explicit"] == 1, "rollout must use real attention"
+    assert attn.fused_attn and expl._attns == []

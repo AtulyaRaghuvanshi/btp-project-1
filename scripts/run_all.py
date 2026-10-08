@@ -7,8 +7,10 @@
     python scripts/run_all.py --backbones resnet50 vit_b16 clip_vitb16 \
         --n-images 200 --explainers gradcampp gradcam inputgrad rise random
 
-Each stage is skipped if its output already exists, so the script is safe to
-re-run after a crash or an interruption.
+Safe to re-run after a crash, Ctrl+C or a sleeping laptop: re-run the same
+command and it picks up where it stopped. Stage 02 resumes from its last
+feature shard, 03 reloads probes that are already fitted, and 04/05 skip every
+cell already in results/progress/. ``--force`` discards all of that.
 """
 from __future__ import annotations
 
@@ -28,7 +30,14 @@ def run(cmd: list, label: str) -> None:
     print(">>> {}".format(label))
     print("    " + " ".join(str(c) for c in cmd))
     print("=" * 78)
-    rc = subprocess.call([sys.executable] + [str(c) for c in cmd])
+    try:
+        rc = subprocess.call([sys.executable] + [str(c) for c in cmd])
+    except KeyboardInterrupt:
+        rc = 130
+    if rc == 130:
+        print("\n!! interrupted during: {}. Re-run the same command to resume."
+              .format(label))
+        sys.exit(rc)
     if rc != 0:
         print("\n!! stage failed: {} (exit {})".format(label, rc))
         sys.exit(rc)
@@ -51,6 +60,7 @@ def main() -> None:
     args = ap.parse_args()
 
     S = ROOT / "scripts"
+    fresh = ["--fresh"] if args.force else []
     tag = "selftest" if args.selftest else "all"
     manifest = "manifest_selftest.csv" if args.selftest else "manifest.csv"
 
@@ -67,26 +77,28 @@ def main() -> None:
         if args.force or not feat.exists():
             run([S / "02_extract_features.py", "--backbone", bb,
                  "--manifest", manifest, "--tag", tag,
-                 "--batch-size", args.batch_size, "--device", args.device],
+                 "--batch-size", args.batch_size, "--device", args.device,
+                 *fresh],
                 "02 extract features [{}]".format(bb))
         else:
             print("[skip] features exist: {}".format(feat.name))
 
-        run([S / "03_train_probes.py", "--backbone", bb, "--tag", tag],
+        run([S / "03_train_probes.py", "--backbone", bb, "--tag", tag, *fresh],
             "03 train probes [{}]".format(bb))
 
         for probe in args.probes:
             run([S / "04_run_leakage.py", "--backbone", bb, "--tag", tag,
                  "--probe", probe, "--n-images", min(args.n_images, 40),
                  "--n-steps", args.n_steps, "--n-repeats", 2,
-                 "--batch-size", args.batch_size, "--device", args.device],
+                 "--batch-size", args.batch_size, "--device", args.device,
+                 *fresh],
                 "04 leakage [{} / {}]".format(bb, probe))
 
         run([S / "05_run_faithfulness.py", "--backbone", bb, "--tag", tag,
              "--probes", *args.probes, "--explainers", *args.explainers,
              "--operators", *args.operators, "--n-images", args.n_images,
              "--n-steps", args.n_steps, "--batch-size", args.batch_size,
-             "--device", args.device],
+             "--device", args.device, *fresh],
             "05 faithfulness [{}]".format(bb))
 
         run([S / "06_make_figures.py", "--backbone", bb, "--tag", tag,
