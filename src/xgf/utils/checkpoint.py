@@ -79,6 +79,10 @@ def atomic_save_npz(path: str | Path, /, **arrays: np.ndarray) -> Path:
     return atomic_write(path, lambda fh: np.savez_compressed(fh, **arrays))
 
 
+def atomic_save_text(path: str | Path, text: str) -> Path:
+    return atomic_write(path, lambda fh: fh.write(text.encode("utf-8")))
+
+
 def atomic_save_torch(path: str | Path, obj: Any) -> Path:
     import torch
 

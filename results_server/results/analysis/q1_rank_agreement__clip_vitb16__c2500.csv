@@ -1,0 +1,16 @@
+backbone,operator_a,operator_b,spearman_rho,p_value,n_explainers,disagrees
+clip_vitb16,gaussian_blur,gray,0.3571428571428572,0.4316113520383278,7,True
+clip_vitb16,gaussian_blur,real_transplant,0.3571428571428572,0.4316113520383278,7,True
+clip_vitb16,gaussian_blur,road_linear,0.7142857142857144,0.07134356146753759,7,False
+clip_vitb16,gaussian_blur,spectral_match,0.39285714285714296,0.38331687042697266,7,True
+clip_vitb16,gaussian_blur,zero,0.642857142857143,0.11939237342741094,7,True
+clip_vitb16,gray,real_transplant,0.28571428571428575,0.5345092286010406,7,True
+clip_vitb16,gray,road_linear,0.03571428571428572,0.9394082054712856,7,True
+clip_vitb16,gray,spectral_match,0.6785714285714287,0.0937502539598313,7,True
+clip_vitb16,gray,zero,0.8571428571428573,0.01369732661532562,7,False
+clip_vitb16,real_transplant,road_linear,0.03571428571428572,0.9394082054712856,7,True
+clip_vitb16,real_transplant,spectral_match,0.03571428571428572,0.9394082054712856,7,True
+clip_vitb16,real_transplant,zero,0.3571428571428572,0.4316113520383278,7,True
+clip_vitb16,road_linear,spectral_match,0.5,0.25316999510032273,7,True
+clip_vitb16,road_linear,zero,0.5,0.25316999510032273,7,True
+clip_vitb16,spectral_match,zero,0.7500000000000002,0.05218140045705776,7,False

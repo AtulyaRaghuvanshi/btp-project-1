@@ -1,0 +1,16 @@
+backbone,operator_a,operator_b,spearman_rho,p_value,n_explainers,disagrees
+vit_b16,gaussian_blur,gray,0.6071428571428572,0.1482311614811614,7,True
+vit_b16,gaussian_blur,real_transplant,0.9642857142857145,0.0004541491691941689,7,False
+vit_b16,gaussian_blur,road_linear,-0.14285714285714288,0.7599453002180929,7,True
+vit_b16,gaussian_blur,spectral_match,0.8214285714285715,0.023448808345691505,7,False
+vit_b16,gaussian_blur,zero,-0.28571428571428575,0.5345092286010406,7,True
+vit_b16,gray,real_transplant,0.7500000000000002,0.05218140045705776,7,False
+vit_b16,gray,road_linear,0.42857142857142866,0.337368311085824,7,True
+vit_b16,gray,spectral_match,0.6785714285714287,0.0937502539598313,7,True
+vit_b16,gray,zero,0.28571428571428575,0.5345092286010406,7,True
+vit_b16,real_transplant,road_linear,0.0,1.0,7,True
+vit_b16,real_transplant,spectral_match,0.8571428571428573,0.01369732661532562,7,False
+vit_b16,real_transplant,zero,-0.10714285714285716,0.8191508555699912,7,True
+vit_b16,road_linear,spectral_match,0.21428571428571433,0.6445115810207203,7,True
+vit_b16,road_linear,zero,0.9285714285714288,0.0025194724037946874,7,False
+vit_b16,spectral_match,zero,0.1785714285714286,0.7016579425162729,7,True

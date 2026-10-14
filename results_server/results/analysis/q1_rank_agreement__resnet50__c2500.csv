@@ -1,0 +1,16 @@
+backbone,operator_a,operator_b,spearman_rho,p_value,n_explainers,disagrees
+resnet50,gaussian_blur,gray,0.8285714285714287,0.04156268221574334,6,False
+resnet50,gaussian_blur,real_transplant,0.8285714285714287,0.04156268221574334,6,False
+resnet50,gaussian_blur,road_linear,0.48571428571428577,0.32872303206997094,6,True
+resnet50,gaussian_blur,spectral_match,0.8857142857142858,0.01884548104956266,6,False
+resnet50,gaussian_blur,zero,0.8285714285714287,0.04156268221574334,6,False
+resnet50,gray,real_transplant,1.0,0.0,6,False
+resnet50,gray,road_linear,0.4285714285714286,0.39650145772594736,6,True
+resnet50,gray,spectral_match,0.7142857142857143,0.1107871720116617,6,False
+resnet50,gray,zero,1.0,0.0,6,False
+resnet50,real_transplant,road_linear,0.4285714285714286,0.39650145772594736,6,True
+resnet50,real_transplant,spectral_match,0.7142857142857143,0.1107871720116617,6,False
+resnet50,real_transplant,zero,1.0,0.0,6,False
+resnet50,road_linear,spectral_match,0.7142857142857143,0.1107871720116617,6,False
+resnet50,road_linear,zero,0.4285714285714286,0.39650145772594736,6,True
+resnet50,spectral_match,zero,0.7142857142857143,0.1107871720116617,6,False

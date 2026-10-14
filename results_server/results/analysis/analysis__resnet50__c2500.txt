@@ -1,0 +1,96 @@
+
+==============================================================================
+Q1  Does the operator change the ranking of explanation methods?
+==============================================================================
+  (over the 36 probe/family/operator cells where every explainer ran: probes ['mixed'])
+operator   gaussian_blur    gray  real_transplant  road_linear  spectral_match    zero
+explainer                                                                             
+gradcam           0.0696  0.1225           0.1631       0.1889          0.0965  0.1793
+gradcampp        -0.0172  0.0029           0.0898       0.0882         -0.0000  0.0434
+inputgrad         0.1203  0.2843           0.2527       0.0711          0.1121  0.3011
+lime              0.1382  0.2761           0.1996       0.2465          0.1785  0.2478
+random            0.0006  0.0002           0.0004      -0.0010         -0.0016  0.0011
+rise              0.0696  0.1119           0.1455       0.1860          0.1165  0.1613
+  rank corr gaussian_blur  vs gray           rho=+0.829 (p=0.0416)
+  rank corr gaussian_blur  vs real_transplant rho=+0.829 (p=0.0416)
+  rank corr gaussian_blur  vs road_linear    rho=+0.486 (p=0.329)  <-- RANKING DISAGREES
+  rank corr gaussian_blur  vs spectral_match rho=+0.886 (p=0.0188)
+  rank corr gaussian_blur  vs zero           rho=+0.829 (p=0.0416)
+  rank corr gray           vs real_transplant rho=+1.000 (p=0)
+  rank corr gray           vs road_linear    rho=+0.429 (p=0.397)  <-- RANKING DISAGREES
+  rank corr gray           vs spectral_match rho=+0.714 (p=0.111)
+  rank corr gray           vs zero           rho=+1.000 (p=0)
+  rank corr real_transplant vs road_linear    rho=+0.429 (p=0.397)  <-- RANKING DISAGREES
+  rank corr real_transplant vs spectral_match rho=+0.714 (p=0.111)
+  rank corr real_transplant vs zero           rho=+1.000 (p=0)
+  rank corr road_linear    vs spectral_match rho=+0.714 (p=0.111)
+  rank corr road_linear    vs zero           rho=+0.429 (p=0.397)  <-- RANKING DISAGREES
+  rank corr spectral_match vs zero           rho=+0.714 (p=0.111)
+
+==============================================================================
+Q3  Does TRAINING DIVERSITY buy faithfulness on an unseen family?
+==============================================================================
+    Each held-out family is scored twice: once by a probe trained on
+    ONE other family, once by a probe trained on the REST. Same head
+    capacity, same test images -- only training diversity differs.
+
+  mean unseen-family delta_auc, by number of training families:
+n_train_fams         1       5
+test_family                   
+autoregressive  0.0805  0.1272
+diffusion       0.0498  0.1288
+faceswap        0.0847  0.1533
+gan             0.0386  0.0898
+inpainting      0.0462  0.1366
+rendered        0.0826  0.1235
+
+  1 -> 5 training families: mean delta_auc +0.0637 -> +0.1265  (paired t=7.82, p=0.000547, n=6)
+  -> diversity HELPS faithfulness
+
+==============================================================================
+Q2  Faithfulness on seen vs unseen families, by probe config
+==============================================================================
+                            mean     std  count
+probe              seen                        
+autoregressive     False -0.0138  0.1213     90
+                   True  -0.0523  0.1789     18
+diffusion          False  0.0883  0.1133     90
+                   True   0.0675  0.0777     18
+faceswap           False  0.0053  0.0408     90
+                   True  -0.0257  0.2188     18
+gan                False  0.1560  0.1108     90
+                   True   0.1394  0.1310     18
+inpainting         False  0.1597  0.0997     90
+                   True   0.1489  0.0979     18
+loo_autoregressive False  0.1272  0.0955     18
+                   True   0.1266  0.1020     90
+loo_diffusion      False  0.1288  0.0882     18
+                   True   0.1322  0.1169     90
+loo_faceswap       False  0.1533  0.1153     18
+                   True   0.1186  0.0884     90
+loo_gan            False  0.0898  0.1089     18
+                   True   0.0883  0.1128     90
+loo_inpainting     False  0.1366  0.0935     18
+                   True   0.1171  0.1069     90
+loo_rendered       False  0.1235  0.1117     18
+                   True   0.1282  0.0970     90
+mixed              True   0.1205  0.0969    108
+rendered           False -0.0131  0.0330     90
+                   True  -0.1005  0.1967     18
+
+Faithfulness generalization gap (seen - unseen), beside the accuracy gap:
+                    faithfulness_gap  accuracy_gap
+probe                                             
+autoregressive               -0.0386        0.2641
+diffusion                    -0.0208        0.2730
+faceswap                     -0.0310        0.3134
+gan                          -0.0166        0.1981
+inpainting                   -0.0108        0.1556
+loo_autoregressive           -0.0006       -0.0082
+loo_diffusion                 0.0034        0.2725
+loo_faceswap                 -0.0347        0.3011
+loo_gan                      -0.0015        0.1464
+loo_inpainting               -0.0195        0.1408
+loo_rendered                  0.0047       -0.0034
+mixed                            NaN           NaN
+rendered                     -0.0874        0.4226

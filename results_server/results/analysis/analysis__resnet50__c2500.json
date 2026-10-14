@@ -1,0 +1,24 @@
+{
+  "backbone": "resnet50",
+  "tag": "c2500",
+  "q1_probes": [
+    "mixed"
+  ],
+  "q1_n_cells": 36,
+  "q1_subset": true,
+  "q3_explainers": [
+    "gradcam",
+    "gradcampp",
+    "inputgrad"
+  ],
+  "q3_test": {
+    "n_fams_lo": 1,
+    "n_fams_hi": 5,
+    "mean_lo": 0.06373850327713793,
+    "mean_hi": 0.12652507440415553,
+    "t": 7.823825962426895,
+    "p_value": 0.0005470726417299478,
+    "n": 6,
+    "diversity_helps": true
+  }
+}

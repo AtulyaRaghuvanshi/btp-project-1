@@ -33,7 +33,6 @@ own cell identity, so resumed numbers equal uninterrupted ones.
 from __future__ import annotations
 
 import argparse
-import itertools
 import shutil
 import sys
 from pathlib import Path
@@ -53,7 +52,7 @@ from xgf.explain import methods as _methods  # noqa: F401,E402  (registers)
 from xgf.metrics.faithfulness import (  # noqa: E402
     CurveResult, corrected_faithfulness, perturbation_curve,
 )
-from xgf.metrics.grid import balanced_explainers, complete_cells  # noqa: E402
+from xgf.metrics.analysis import report, save_analysis, summarize  # noqa: E402
 from xgf.metrics.leakage import random_masks  # noqa: E402
 from xgf.metrics.localization import localization_summary  # noqa: E402
 from xgf.models.detector import Detector  # noqa: E402
@@ -344,81 +343,14 @@ def main() -> None:
     out.to_csv(csv, index=False)
     print("\n[faithfulness] {} rows -> {}".format(len(out), csv))
 
-    print("\n" + "=" * 78)
-    print("Q1  Does the operator change the ranking of explanation methods?")
-    print("=" * 78)
-    # Explainers are compared on the cells where all of them ran, so a method
-    # run on one probe is not ranked against methods averaged over thirteen.
-    q1 = complete_cells(out)
-    if len(q1) < len(out):
-        print("  (over the {} probe/family/operator cells where every explainer "
-              "ran: probes {})".format(
-                  q1[["probe", "test_family", "operator"]].drop_duplicates().shape[0],
-                  sorted(q1["probe"].unique())))
-    piv = q1.pivot_table(index="explainer", columns="operator",
-                         values="delta_auc", aggfunc="mean")
-    print(piv.round(4).to_string())
-    if piv.shape[1] > 1:
-        from scipy import stats
-        ops = list(piv.columns)
-        for a, b in itertools.combinations(ops, 2):
-            sub = piv[[a, b]].dropna()
-            if len(sub) >= 3:
-                rho, p = stats.spearmanr(sub[a], sub[b])
-                flag = "  <-- RANKING DISAGREES" if rho < 0.7 else ""
-                print("  rank corr {:<14} vs {:<14} rho={:+.3f} (p={:.3g}){}".format(
-                    a, b, rho, p, flag))
-
-    print("\n" + "=" * 78)
-    print("Q3  Does TRAINING DIVERSITY buy faithfulness on an unseen family?")
-    print("=" * 78)
-    print("    Each held-out family is scored twice: once by a probe trained on")
-    print("    ONE other family, once by a probe trained on the REST. Same head")
-    print("    capacity, same test images -- only training diversity differs.")
-    # Probes are compared over the explainers every probe was scored with.
-    bal = balanced_explainers(out)
-    div = bal[(~bal["seen"]) & (bal["explainer"] != "random")].copy()
-    div["n_train_fams"] = div["train_families"].apply(
-        lambda s: len(str(s).split(",")) if s else 0
-    )
-    if len(div) and div["n_train_fams"].nunique() > 1:
-        tab = div.pivot_table(index="test_family", columns="n_train_fams",
-                              values="delta_auc", aggfunc="mean")
-        print("\n  mean unseen-family delta_auc, by number of training families:")
-        print(tab.round(4).to_string())
-        lo, hi = tab.columns.min(), tab.columns.max()
-        paired = tab[[lo, hi]].dropna()
-        if len(paired) >= 2:
-            from scipy import stats
-            t, pv = stats.ttest_rel(paired[hi], paired[lo])
-            print("\n  {} -> {} training families: mean delta_auc {:+.4f} -> {:+.4f}"
-                  "  (paired t={:.2f}, p={:.3g}, n={})".format(
-                      lo, hi, paired[lo].mean(), paired[hi].mean(), t, pv,
-                      len(paired)))
-            verdict = ("diversity HELPS faithfulness"
-                       if paired[hi].mean() > paired[lo].mean()
-                       else "diversity does NOT help faithfulness")
-            print("  -> {}".format(verdict))
-    else:
-        print("\n  Not enough probe configs to compare. Train the loo_* probes:")
-        print("  python scripts/03_train_probes.py --backbone {} --tag {}".format(
-            args.backbone, args.tag))
-
-    print("\n" + "=" * 78)
-    print("Q2  Faithfulness on seen vs unseen families, by probe config")
-    print("=" * 78)
-    real = bal[bal["explainer"] != "random"]
-    g = real.groupby(["probe", "seen"])["delta_auc"].agg(["mean", "std", "count"])
-    print(g.round(4).to_string())
-    gap = real.pivot_table(index="probe", columns="seen", values="delta_auc",
-                           aggfunc="mean")
-    if True in gap.columns and False in gap.columns:
-        gap["faithfulness_gap"] = gap[True] - gap[False]
-        print("\nFaithfulness generalization gap (seen - unseen):")
-        print(gap[["faithfulness_gap"]].round(4).to_string())
-        print("\nCompare against the accuracy gap in "
-              "results/accuracy_matrix__*.csv -- if the two gaps diverge, the "
-              "detector is generalizing without its explanation generalizing.")
+    # The Q1/Q2/Q3 tables are saved as well as printed; scripts/07 rebuilds
+    # them from the CSVs alone, through the same summarize().
+    acsv = PATHS.results / "accuracy_matrix__{}__{}.csv".format(args.backbone, args.tag)
+    analysis = summarize(out, args.backbone, args.tag,
+                         acc=pd.read_csv(acsv) if acsv.exists() else None)
+    print(report(analysis))
+    save_analysis(analysis, PATHS.analysis)
+    print("\n[analysis] tables -> {}".format(PATHS.analysis))
 
     save_json({"args": vars(args)},
               PATHS.results / "faithfulness_args__{}__{}.json".format(

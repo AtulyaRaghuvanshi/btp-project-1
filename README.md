@@ -39,6 +39,9 @@ python scripts/05_run_faithfulness.py --backbone resnet50 --tag selftest \
     --explainers gradcampp gradcam inputgrad random \
     --operators zero gray road_linear real_transplant --n-images 30
 python scripts/06_make_figures.py     --backbone resnet50 --tag selftest
+# 05 saves its Q1/Q2/Q3 tables to results/analysis/; this rebuilds them from
+# the CSVs alone (all backbones, plus a cross-backbone headline__<tag>.csv)
+python scripts/07_summarize.py        --tag selftest
 ```
 
 The `--selftest` path generates synthetic images whose "generator families" have

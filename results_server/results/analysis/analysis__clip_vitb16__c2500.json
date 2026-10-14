@@ -1,0 +1,25 @@
+{
+  "backbone": "clip_vitb16",
+  "tag": "c2500",
+  "q1_probes": [
+    "mixed"
+  ],
+  "q1_n_cells": 36,
+  "q1_subset": true,
+  "q3_explainers": [
+    "attention_rollout",
+    "gradcam",
+    "gradcampp",
+    "inputgrad"
+  ],
+  "q3_test": {
+    "n_fams_lo": 1,
+    "n_fams_hi": 5,
+    "mean_lo": 0.022739952805507817,
+    "mean_hi": 0.026364782763064573,
+    "t": 0.723362990154057,
+    "p_value": 0.5018696614104442,
+    "n": 6,
+    "diversity_helps": true
+  }
+}

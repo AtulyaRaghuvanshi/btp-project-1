@@ -1,0 +1,8 @@
+backbone,explainer,gaussian_blur,gray,real_transplant,road_linear,spectral_match,zero
+clip_vitb16,attention_rollout,5.0,4.0,5.0,7.0,6.0,6.0
+clip_vitb16,gradcam,4.0,6.0,3.0,2.0,4.0,5.0
+clip_vitb16,gradcampp,3.0,5.0,2.0,4.0,7.0,4.0
+clip_vitb16,inputgrad,2.0,3.0,7.0,1.0,2.0,2.0
+clip_vitb16,lime,1.0,1.0,1.0,3.0,1.0,1.0
+clip_vitb16,random,6.0,7.0,6.0,5.0,5.0,7.0
+clip_vitb16,rise,7.0,2.0,4.0,6.0,3.0,3.0

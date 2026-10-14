@@ -72,6 +72,8 @@ class Paths:
     features: Path = field(default_factory=lambda: _p("features"))
     results: Path = field(default_factory=lambda: _p("results"))
     figures: Path = field(default_factory=lambda: _p("results", "figures"))
+    # Q1/Q2/Q3 summary tables (xgf.metrics.analysis)
+    analysis: Path = field(default_factory=lambda: _p("results", "analysis"))
     checkpoints: Path = field(default_factory=lambda: _p("results", "checkpoints"))
     # Resumable-run state (progress logs, cached saliency). Safe to delete; a
     # deleted entry only means that work is redone on the next run.
